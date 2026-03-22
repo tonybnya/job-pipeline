@@ -1,7 +1,7 @@
 
-# JobPipeline — Job Tracker
+# JobPipeline - Job Tracker
 
-> **Note:** This is a temporary README. The application is currently undergoing.
+> **Note:** This is a temporary README. The application is currently ongoing.
 
 ## Overview
 JobPipeline is a high-ticket job funnel tracker built to help job seekers organize, track, and optimize their job application process. 
