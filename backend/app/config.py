@@ -85,13 +85,6 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed origins",
     )
 
-    @validator("CORS_ORIGINS", pre=True)
-    def parse_cors_origins(cls, v):
-        """Parse comma-separated CORS origins into list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
-
     @property
     def cors_origins_list(self) -> List[str]:
         """Get CORS origins as a list."""

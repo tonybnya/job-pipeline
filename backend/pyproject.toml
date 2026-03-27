@@ -1,6 +1,6 @@
 [project]
 name = "JobPipeline"
-version = "0.1.0"
+version = "1.0.0"
 description = "Job Application Tracker - FastAPI Backend"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,8 +32,8 @@ dev = [
 [project.scripts]
 start = "uvicorn app.main:app --reload"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
