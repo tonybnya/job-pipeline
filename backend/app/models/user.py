@@ -96,7 +96,6 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="dynamic",
-        comment="User's job applications",
     )
 
     def __repr__(self) -> str:
