@@ -4,18 +4,42 @@ Description  : Security utilities for password hashing and JWT token management
 Author       : @tonybnya
 """
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.user import User
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _hash_password(password: str) -> str:
+    """Hash password using bcrypt with pre-hashing for long passwords."""
+    # Pre-hash long passwords to avoid bcrypt's 72-byte limit
+    if len(password.encode("utf-8")) > 72:
+        password = hashlib.sha256(password.encode()).hexdigest()
+
+    password_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode("utf-8")
+
+
+def _verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash."""
+    # Pre-hash long passwords to avoid bcrypt's 72-byte limit
+    if len(plain_password.encode("utf-8")) > 72:
+        plain_password = hashlib.sha256(plain_password.encode()).hexdigest()
+
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
+    except Exception:
+        return False
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -29,7 +53,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return _verify_password(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
@@ -42,7 +66,7 @@ def get_password_hash(password: str) -> str:
     Returns:
         str: The hashed password
     """
-    return pwd_context.hash(password)
+    return _hash_password(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

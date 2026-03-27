@@ -177,6 +177,133 @@ async def create_job(
 
 
 @router.get(
+    "/stats",
+    response_model=JobStatistics,
+    summary="Get job statistics",
+    description="Get comprehensive statistics about job applications.",
+)
+async def get_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get comprehensive job application statistics.
+
+    Returns:
+    - Total applications
+    - Applications by stage
+    - Open rate
+    - Interview rate
+    - Offer rate
+    - Follow-ups needed
+    - Response rate
+    - Time-based metrics
+    """
+    # Base query for user's jobs
+    base_query = db.query(JobApplication).filter(
+        JobApplication.user_id == str(current_user.id)
+    )
+
+    total = base_query.count()
+
+    if total == 0:
+        return JobStatistics(
+            total_applications=0,
+            by_stage=StageCounts(),
+            active_applications=0,
+            closed_applications=0,
+            opened_count=0,
+            unopened_count=0,
+            open_rate=0.0,
+            interviews_count=0,
+            interview_rate=0.0,
+            offers_count=0,
+            offer_rate=0.0,
+            need_follow_up=0,
+            follow_up_rate=0.0,
+            responses_count=0,
+            response_rate=0.0,
+            average_days_to_response=None,
+            applications_this_week=0,
+            applications_this_month=0,
+        )
+
+    # Count by stage
+    stage_counts = {}
+    for stage in JobStage:
+        count = base_query.filter(JobApplication.stage == stage).count()
+        stage_counts[stage.value] = count
+
+    # Active vs Closed
+    active_stages = [JobStage.APPLIED, JobStage.SCREENING, JobStage.INTERVIEW]
+    active_count = base_query.filter(JobApplication.stage.in_(active_stages)).count()
+    closed_count = total - active_count
+
+    # Open rate
+    opened_count = base_query.filter(
+        JobApplication.status == ApplicationStatus.OPENED
+    ).count()
+    unopened_count = total - opened_count
+    open_rate = (opened_count / total) * 100 if total > 0 else 0.0
+
+    # Interview metrics
+    interviews_count = base_query.filter(
+        JobApplication.stage == JobStage.INTERVIEW
+    ).count()
+    interview_rate = (interviews_count / total) * 100 if total > 0 else 0.0
+
+    # Offers
+    offers_count = base_query.filter(JobApplication.stage == JobStage.OFFER).count()
+    offer_rate = (offers_count / total) * 100 if total > 0 else 0.0
+
+    # Need follow-up (unopened after 7 days with no response)
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    need_follow_up = base_query.filter(
+        JobApplication.status == ApplicationStatus.UNOPENED,
+        JobApplication.created_at < seven_days_ago,
+        JobApplication.stage.in_([JobStage.APPLIED, JobStage.SCREENING]),
+    ).count()
+    follow_up_rate = (need_follow_up / total) * 100 if total > 0 else 0.0
+
+    # Response rate (any stage beyond applied)
+    response_count = base_query.filter(JobApplication.stage != JobStage.APPLIED).count()
+    response_rate = (response_count / total) * 100 if total > 0 else 0.0
+
+    # Time-based metrics
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+
+    applications_this_week = base_query.filter(
+        JobApplication.created_at >= one_week_ago
+    ).count()
+
+    applications_this_month = base_query.filter(
+        JobApplication.created_at >= one_month_ago
+    ).count()
+
+    return JobStatistics(
+        total_applications=total,
+        by_stage=StageCounts(**stage_counts),
+        active_applications=active_count,
+        closed_applications=closed_count,
+        opened_count=opened_count,
+        unopened_count=unopened_count,
+        open_rate=round(open_rate, 2),
+        interviews_count=interviews_count,
+        interview_rate=round(interview_rate, 2),
+        offers_count=offers_count,
+        offer_rate=round(offer_rate, 2),
+        need_follow_up=need_follow_up,
+        follow_up_rate=round(follow_up_rate, 2),
+        responses_count=response_count,
+        response_rate=round(response_rate, 2),
+        average_days_to_response=None,  # Would require more complex calculation
+        applications_this_week=applications_this_week,
+        applications_this_month=applications_this_month,
+    )
+
+
+@router.get(
     "/{job_id}",
     response_model=JobApplicationResponse,
     summary="Get job application",
@@ -325,129 +452,3 @@ async def delete_job(
 
     return None
 
-
-@router.get(
-    "/stats",
-    response_model=JobStatistics,
-    summary="Get job statistics",
-    description="Get comprehensive statistics about job applications.",
-)
-async def get_statistics(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Get comprehensive job application statistics.
-
-    Returns:
-    - Total applications
-    - Applications by stage
-    - Open rate
-    - Interview rate
-    - Offer rate
-    - Follow-ups needed
-    - Response rate
-    - Time-based metrics
-    """
-    # Base query for user's jobs
-    base_query = db.query(JobApplication).filter(
-        JobApplication.user_id == str(current_user.id)
-    )
-
-    total = base_query.count()
-
-    if total == 0:
-        return JobStatistics(
-            total_applications=0,
-            by_stage=StageCounts(),
-            active_applications=0,
-            closed_applications=0,
-            opened_count=0,
-            unopened_count=0,
-            open_rate=0.0,
-            interviews_count=0,
-            interview_rate=0.0,
-            offers_count=0,
-            offer_rate=0.0,
-            need_follow_up=0,
-            follow_up_rate=0.0,
-            responses_count=0,
-            response_rate=0.0,
-            average_days_to_response=None,
-            applications_this_week=0,
-            applications_this_month=0,
-        )
-
-    # Count by stage
-    stage_counts = {}
-    for stage in JobStage:
-        count = base_query.filter(JobApplication.stage == stage).count()
-        stage_counts[stage.value] = count
-
-    # Active vs Closed
-    active_stages = [JobStage.APPLIED, JobStage.SCREENING, JobStage.INTERVIEW]
-    active_count = base_query.filter(JobApplication.stage.in_(active_stages)).count()
-    closed_count = total - active_count
-
-    # Open rate
-    opened_count = base_query.filter(
-        JobApplication.status == ApplicationStatus.OPENED
-    ).count()
-    unopened_count = total - opened_count
-    open_rate = (opened_count / total) * 100 if total > 0 else 0.0
-
-    # Interview metrics
-    interviews_count = base_query.filter(
-        JobApplication.stage == JobStage.INTERVIEW
-    ).count()
-    interview_rate = (interviews_count / total) * 100 if total > 0 else 0.0
-
-    # Offers
-    offers_count = base_query.filter(JobApplication.stage == JobStage.OFFER).count()
-    offer_rate = (offers_count / total) * 100 if total > 0 else 0.0
-
-    # Need follow-up (unopened after 7 days with no response)
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    need_follow_up = base_query.filter(
-        JobApplication.status == ApplicationStatus.UNOPENED,
-        JobApplication.created_at < seven_days_ago,
-        JobApplication.stage.in_([JobStage.APPLIED, JobStage.SCREENING]),
-    ).count()
-    follow_up_rate = (need_follow_up / total) * 100 if total > 0 else 0.0
-
-    # Response rate (any stage beyond applied)
-    response_count = base_query.filter(JobApplication.stage != JobStage.APPLIED).count()
-    response_rate = (response_count / total) * 100 if total > 0 else 0.0
-
-    # Time-based metrics
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
-    one_month_ago = datetime.utcnow() - timedelta(days=30)
-
-    applications_this_week = base_query.filter(
-        JobApplication.created_at >= one_week_ago
-    ).count()
-
-    applications_this_month = base_query.filter(
-        JobApplication.created_at >= one_month_ago
-    ).count()
-
-    return JobStatistics(
-        total_applications=total,
-        by_stage=StageCounts(**stage_counts),
-        active_applications=active_count,
-        closed_applications=closed_count,
-        opened_count=opened_count,
-        unopened_count=unopened_count,
-        open_rate=round(open_rate, 2),
-        interviews_count=interviews_count,
-        interview_rate=round(interview_rate, 2),
-        offers_count=offers_count,
-        offer_rate=round(offer_rate, 2),
-        need_follow_up=need_follow_up,
-        follow_up_rate=round(follow_up_rate, 2),
-        responses_count=response_count,
-        response_rate=round(response_rate, 2),
-        average_days_to_response=None,  # Would require more complex calculation
-        applications_this_week=applications_this_week,
-        applications_this_month=applications_this_month,
-    )

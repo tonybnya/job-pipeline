@@ -407,15 +407,3 @@ class JobStatistics(BaseModel):
         ...,
         description="Applications submitted this month",
     )
-    by_stage: dict = Field(
-        ...,
-        description="Count of applications by stage",
-    )
-    by_status: dict = Field(
-        ...,
-        description="Count of applications by status",
-    )
-    response_rate: float = Field(
-        ...,
-        description="Percentage of applications with responses",
-    )
