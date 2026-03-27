@@ -10,11 +10,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 
-# Create test database in memory
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+# Use TEST_DATABASE_URL from environment variables, fallback to in-memory SQLite
+SQLALCHEMY_DATABASE_URL = settings.TEST_DATABASE_URL or "sqlite:///./test.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,

@@ -23,16 +23,22 @@ class Settings(BaseSettings):
     )
 
     # Database Configuration
-    # SQLite for development, Neon PostgreSQL for production
+    # Development (SQLite)
     DEV_DATABASE_URL: str = Field(
         default="sqlite:///./jobs.db",
-        description="Database URL (SQLite for dev, Neon PostgreSQL for prod)",
+        description="Development database URL (SQLite)",
     )
 
-    # Neon PostgreSQL (Production)
+    # Testing (SQLite in-memory or file)
+    TEST_DATABASE_URL: Optional[str] = Field(
+        default=None,
+        description="Testing database URL (defaults to SQLite in-memory if not set)",
+    )
+
+    # Production (Neon PostgreSQL)
     PROD_DATABASE_URL: Optional[str] = Field(
         default=None,
-        description="Neon PostgreSQL connection URL",
+        description="Production Neon PostgreSQL connection URL",
     )
 
     # Security
